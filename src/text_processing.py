@@ -1,5 +1,4 @@
 
-
 import pandas as pd
 import string
 from nltk.tokenize import word_tokenize
@@ -8,6 +7,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 #Path to the captions.txt file
 captions_path = "../data/captions/captions.txt"
+
 
 def preprocess_captions(captions_path):
 
@@ -25,10 +25,19 @@ def preprocess_captions(captions_path):
 
     df['lower_caption'] = df['lower_caption'].apply(remove_punctuation)
 
+    return df
+
+
+def tokenize(df):
+
     #Creating a new column for tokens for each caption
     df['tokens'] = df['lower_caption'].apply(lambda x: word_tokenize(x))
 
-    #Counting all the words
+    return df
+
+
+def vocabulary(df):
+    # Counting all the words
     word_counter = Counter()
 
     for i in df['tokens']:
@@ -66,9 +75,10 @@ def preprocess_captions(captions_path):
         #Appending to the empty sequence list
         sequence.append(seq)
 
-    #Dropping caption, and lower_caption columns to organize the dataframe since they aren't useful anymore
-    df.drop(['caption', 'lower_caption'], axis='columns', inplace=True)
+    return sequence, word_to_idx
 
+
+def padded_seq(sequence, max_length = 20):
     # Truncating sequences > 20
     # Padding sequences < 20
     max_length = 20
@@ -82,5 +92,9 @@ def preprocess_captions(captions_path):
         # Truncating at the end
         truncating='post'
     )
+
+    return padded_sequences
+
+
 
 
