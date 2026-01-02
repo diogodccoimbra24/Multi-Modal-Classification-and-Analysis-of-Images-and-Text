@@ -1,6 +1,5 @@
 
 
-from text_processing import preprocess_captions, tokenize, vocabulary, padded_seq
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from tensorflow.keras.layers import Embedding, LSTM
