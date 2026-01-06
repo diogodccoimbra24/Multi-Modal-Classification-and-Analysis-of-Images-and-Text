@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Embedding, LSTM
 from keras.models import Model
 
 #Text encoder model
-def build_text_encoder(vocab_size, max_length=20):
+def build_text_encoder(vocab_size, max_length=22):
 
     #Default dimension for small / medium datasets (flickr8k)
     embedding_dim = 128
@@ -49,7 +49,7 @@ def build_fusion_model(vocab_size):
 
     #Creating inputs for the encoders
     image_input = keras.Input(shape = (224, 224, 3), name = 'image_input')
-    text_input = keras.Input(shape=(20, ), dtype='int32')
+    text_input = keras.Input(shape=(22, ), dtype='int32', name = 'text_input')
 
 
     #Calling the functions of the encoders with the inputs
@@ -72,9 +72,7 @@ def build_fusion_model(vocab_size):
         activation = 'softmax'
         )(x)
 
-
-
-    #returnin the model with the inputs and output
+    #returning the model with the inputs and output
     return Model(inputs = [image_input, text_input], outputs = outputs)
 
 fusion_model = build_fusion_model(vocab_size= 8829)
