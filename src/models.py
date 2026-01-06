@@ -59,8 +59,23 @@ def build_fusion_model(vocab_size):
     #Concatenation the outputs from the encoders
     fused = keras.layers.concatenate([image_feature,text_feature], -1)
 
+
+    #Hidden layer
+    x = keras.layers.Dense(
+        units = 256,
+        activation = 'relu'
+        )(fused)
+
+    #Output layer
+    outputs = keras.layers.Dense(
+        units = vocab_size,
+        activation = 'softmax'
+        )(x)
+
+
+
     #returnin the model with the inputs and output
-    return Model(inputs = [image_input, text_input], outputs = fused)
+    return Model(inputs = [image_input, text_input], outputs = outputs)
 
 fusion_model = build_fusion_model(vocab_size= 8829)
 fusion_model.summary()
