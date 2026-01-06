@@ -48,11 +48,17 @@ def vocabulary(df):
     PAD_TOKEN = "<PAD>"
     #When a word is not in the vocabulary
     UNK_TOKEN = "<UNK>"
+    #Start of the inference
+    START_TOKEN = "<START>"
+    #End of inference
+    END_TOKEN = "<END>"
 
     #Creating a vocabulary
     word_to_idx = {
         PAD_TOKEN: 0,
-        UNK_TOKEN: 1
+        UNK_TOKEN: 1,
+        START_TOKEN: 2,
+        END_TOKEN: 3
     }
 
     for word in word_counter:
@@ -62,26 +68,36 @@ def vocabulary(df):
     #Creating a variable for unk token index
     UNK_IDX = word_to_idx[UNK_TOKEN]
 
+    #Start/end indices to wrap sequences
+    START_IDX = word_to_idx[START_TOKEN]
+    END_IDX = word_to_idx[END_TOKEN]
+
     sequence = []
 
     #For loop to check if the word is in the tokens dataframe; if it is just adds the index; if it's not it will add the unk index
     for tokens in df['tokens']:
         seq = []
+
+        #To always start with <START> in the beginning
+        seq.append(START_IDX)
+
         for word in tokens:
             if word in word_to_idx:
                 seq.append(word_to_idx[word])
             else:
                 seq.append(UNK_IDX)
+        #Appending <END> in the end of every sequence
+        seq.append(END_IDX)
         #Appending to the empty sequence list
         sequence.append(seq)
 
     return sequence, word_to_idx
 
 
-def padded_seq(sequence, max_length = 20):
+#max_length = 22 because i just added start and end
+def padded_seq(sequence, max_length = 22):
     # Truncating sequences > 20
     # Padding sequences < 20
-    max_length = 20
 
     #Sequences padded and truncated
     padded_sequences = pad_sequences(
