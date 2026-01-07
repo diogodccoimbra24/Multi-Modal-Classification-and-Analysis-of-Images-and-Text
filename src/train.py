@@ -1,60 +1,60 @@
 
 import tensorflow as tf
-from src.dataset import training_data_generator, build_image_to_captions
+from src.dataset import extract_image_features, build_sequence_dataset
 from src.text_processing import preprocess_captions, tokenize, vocabulary, padded_seq
-
+from src.models import build_caption_model
 
 
 CAPTIONS_PATH = "../data/captions/captions.txt"
-MAX_LENGTH = 22
+IMAGE_FOLDER = "../data/images/flickr8k_images/images"
 
+MAX_LENGTH = 22
+BATCH_SIZE = 64
+EPOCHS = 10
+
+#Text processing
 df = preprocess_captions(CAPTIONS_PATH)
 df = tokenize(df)
 
 sequences, word_to_idx = vocabulary(df)
 padded_sequences = padded_seq(sequences, max_length=MAX_LENGTH)
 
-print("df shape:", df.shape)
-print("padded_sequences shape:", padded_sequences.shape)
-print("first seq (ids):", padded_sequences[0][:10])
-
-
-
-MAX_LENGTH = 22
-BATCH_SIZE = 32
-
-image_to_captions = build_image_to_captions(df, padded_sequences)
-
-
-image_folder = "../data/images/flickr8k_images/images"
-
-dataset = tf.data.Dataset.from_generator(
-    lambda: training_data_generator(
-        image_to_captions,
-        image_folder,
-        pad_id=0,
-        max_length=MAX_LENGTH
-    ),
-    output_signature=(
-        (
-            tf.TensorSpec(shape=(224, 224, 3), dtype=tf.float32),
-            tf.TensorSpec(shape=(MAX_LENGTH,), dtype=tf.int32),
-        ),
-        tf.TensorSpec(shape=(), dtype=tf.int32)
-    )
+#Precompute CNN features (2048 per image)
+image_features = extract_image_features(
+    IMAGE_FOLDER,
+    df["image"].unique()
 )
 
-dataset = dataset.batch(BATCH_SIZE)
+#Build seq2seq dataset arrays
+X_img, X_in, Y_out = build_sequence_dataset(df, padded_sequences, image_features)
 
+print("X_img:", X_img.shape)
+print("X_in :", X_in.shape)
+print("Y_out:", Y_out.shape)
 
+#Tf.data pipeline
+ds = tf.data.Dataset.from_tensor_slices(((X_img, X_in), Y_out))
+ds = ds.shuffle(5000).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 
-from src.models import fusion_model
-
-fusion_model.compile(
-    optimizer="adam",
-    loss="sparse_categorical_crossentropy",
-    metrics=["accuracy"]
+#Model
+model = build_caption_model(
+    vocab_size= len(word_to_idx),
+    max_length= MAX_LENGTH
+)
+model.compile(
+    optimizer= 'adam',
+    loss= 'sparse_categorical_crossentropy',
+    matrics= ['accuracy']
 )
 
+#Train te model
+history = model.fit(ds, epochs= EPOCHS, steps_per_epoch= 1000)
 
-fusion_model.fit(dataset, epochs=2)
+
+#Save model
+model.save("../models/caption_model.keras")
+
+#Save history for plots later
+import json
+with open("../models/history.json", "w") as f:
+    json.dump(history.history, f)
