@@ -1,48 +1,56 @@
 
 import numpy as np
-from collections import defaultdict
+import tensorflow as tf
 import os
-from image_processing import load_and_preprocess_image
 
-#Function that builds a dictionary to match the image with the list of padded sequences
-def build_image_to_captions(df, padded_sequences):
+#Precomputes ResNet50 features for each image
+def extract_image_features(image_folder, image_names):
+    resnet = tf.keras.applications.ResNet50(
+        include_top= False,
+        weights= 'imagenet',
+        pooling= 'avg'
+    )
+    #To freeze
+    resnet.trainable = False
 
-    image_to_captions = defaultdict(list)
+    features = {}
+
+    for img_name in image_names:
+        img_path = os.path.join(image_folder, img_name)
+        if not os.path.exists(img_path):
+            continue
+
+        #Load + preprocess image
+        img = tf.keras.utils.load_img(img_path, target_size=(224, 224))
+        img = tf.keras.utils.img_to_array(img)
+        img = tf.expand_dims(img, axis=0)
+        img = tf.keras.applications.resnet50.preprocess_input(img)
+
+        #Extract features (2048,)
+        feat = resnet.predict(img, verbose=0)[0]
+        features[img_name] = feat.astype(np.float32)
+
+    return features
+
+#Function that builds arrays for sequence to sequence teacher forcing
+def build_sequence_dataset(df, padded_sequences, image_features):
+
+    X_img = []
+    X_in = []
+    Y_out = []
 
     for i in range(len(df)):
-        image_name = df.iloc[i]["image"]
-        caption_seq = padded_sequences[i]
-        image_to_captions[image_name].append(caption_seq)
+        img_name = df.iloc[i]["image"]
+        if img_name not in image_features:
+            continue
 
-    return image_to_captions
+        cap = padded_sequences[i]
+        X_img.append(image_features[img_name])
+        X_in.append(cap[:-1])
+        Y_out.append(cap[1:])
 
-#Generator that give us the target word
-def training_data_generator(
-    image_to_captions,
-    image_folder,
-    pad_id=0,
-    max_length=20
-    ):
-
-    for image_name, captions in image_to_captions.items():
-
-        image_path = os.path.join(image_folder, image_name)
-        image_tensor = load_and_preprocess_image(image_path)
-
-        for caption in captions:
-
-            #Find real caption length (before PAD)
-            non_pad_positions = np.where(caption == pad_id)[0]
-            cap_len = non_pad_positions[0] if len(non_pad_positions) > 0 else max_length
-
-            #Teacher forcing: sliding window
-            for t in range(1, cap_len):
-                input_seq = caption.copy()
-                input_seq[t:] = pad_id
-                target_word = caption[t]
-
-                yield (
-                    image_tensor,
-                    input_seq
-                ), target_word
-
+    return(
+        np.asarray(X_img, dtype=np.float32),
+        np.asarray(X_in, dtype=np.int32),
+        np.asarray(Y_out, dtype=np.int32),
+    )
