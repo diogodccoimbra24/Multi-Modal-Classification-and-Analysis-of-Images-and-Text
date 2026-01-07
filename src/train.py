@@ -10,7 +10,7 @@ IMAGE_FOLDER = "../data/images/flickr8k_images/images"
 
 MAX_LENGTH = 22
 BATCH_SIZE = 64
-EPOCHS = 10
+EPOCHS = 5
 
 #Text processing
 df = preprocess_captions(CAPTIONS_PATH)
@@ -44,11 +44,11 @@ model = build_caption_model(
 model.compile(
     optimizer= 'adam',
     loss= 'sparse_categorical_crossentropy',
-    matrics= ['accuracy']
+    metrics= ['accuracy']
 )
 
 #Train te model
-history = model.fit(ds, epochs= EPOCHS, steps_per_epoch= 1000)
+history = model.fit(ds, epochs= EPOCHS, steps_per_epoch= 500)
 
 
 #Save model

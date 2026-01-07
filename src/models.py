@@ -1,5 +1,4 @@
-import keras
-import tensorflow as tf
+
 from tensorflow.keras import layers, Model
 
 
@@ -47,7 +46,6 @@ def build_caption_model(vocab_size, max_length = 22, embed_dim = 256, lstm_units
         ),
         name= 'vocab_softmax'
     )(fused)
-
     return Model(inputs=[img_input, seq_input], outputs=out, name="caption_model")
 
 

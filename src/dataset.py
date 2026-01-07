@@ -29,15 +29,12 @@ def extract_image_features(image_folder, image_names):
         #Extract features (2048,)
         feat = resnet.predict(img, verbose=0)[0]
         features[img_name] = feat.astype(np.float32)
-
     return features
 
 #Function that builds arrays for sequence to sequence teacher forcing
 def build_sequence_dataset(df, padded_sequences, image_features):
 
-    X_img = []
-    X_in = []
-    Y_out = []
+    X_img, X_in, Y_out = [], [], []
 
     for i in range(len(df)):
         img_name = df.iloc[i]["image"]

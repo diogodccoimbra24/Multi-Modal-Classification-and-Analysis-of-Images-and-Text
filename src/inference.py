@@ -10,7 +10,7 @@ from src.text_processing import preprocess_captions, tokenize, vocabulary, padde
 
 CAPTIONS_PATH = "../data/captions/captions.txt"
 IMAGE_FOLDER  = "../data/images/flickr8k_images/images"
-MODEL_PATH    = "../models/caption_model_1.keras"
+MODEL_PATH    = "../models/caption_model.keras"
 MAX_LENGTH    = 22
 
 
@@ -94,5 +94,5 @@ def show_image_with_caption(image_name):
 
 #To try one image
 if __name__ == "__main__":
-    test_image = df["image"].iloc[2004]
+    test_image = df["image"].iloc[555]
     show_image_with_caption(test_image)
