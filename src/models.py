@@ -1,81 +1,53 @@
 import keras
 import tensorflow as tf
-from tensorflow.keras import layers, models
-from tensorflow.keras.layers import Embedding, LSTM
-from keras.models import Model
-
-#Text encoder model
-def build_text_encoder(vocab_size, max_length=22):
-
-    #Default dimension for small / medium datasets (flickr8k)
-    embedding_dim = 128
-
-    #Building the model
-    model = models.Sequential([
-        Embedding(input_dim = vocab_size,
-                  output_dim = embedding_dim,
-                  input_length = max_length),
-        LSTM(256) #Standard default
-    ])
-
-    model.build(input_shape=(None, max_length))
-    return model
+from tensorflow.keras import layers, Model
 
 
-#Image encoder model
-def build_image_encoder():
-    model = tf.keras.applications.ResNet50(
-        include_top = False,
-        weights = 'imagenet',
-        input_tensor = None,
-        input_shape = (224, 224, 3),
-        pooling = 'avg',
-        classes = None,
-        classifier_activation = None
-    )
-
-    #Freezing the model
-    model.trainable = False
-    return model
-
-build_image_encoder().summary()
-
-#fusion model (between text encoder and image encoder)
-def build_fusion_model(vocab_size):
-
-    # Using directly the encoders
-    image_encoder = build_image_encoder()
-    text_encoder = build_text_encoder(vocab_size)
-
-    #Creating inputs for the encoders
-    image_input = keras.Input(shape = (224, 224, 3), name = 'image_input')
-    text_input = keras.Input(shape=(22, ), dtype='int32', name = 'text_input')
+#Improved model (sequence - to sequence with fusion per timestep)
+def build_caption_model(vocab_size, max_length = 22, embed_dim = 256, lstm_units = 256):
 
 
-    #Calling the functions of the encoders with the inputs
-    image_feature = image_encoder(image_input)
-    text_feature = text_encoder(text_input)
+    T = max_length -1
 
-    #Concatenation the outputs from the encoders
-    fused = keras.layers.concatenate([image_feature,text_feature], -1)
+    #Creating inputs
+    #Precomputed ResNet50 feature vector
+    img_input = layers.Input(shape = (2048, ), name = 'img_features')
+    #caption tokens shifted for teacher forcing
+    seq_input = layers.Input(shape=(T, ), dtype='int32', name = 'input_tokens')
 
+    #Text branch
+    txt = layers.Embedding(
+        input_dim= vocab_size,
+        output_dim= embed_dim,
+        name = 'word_embedding'
+    )(seq_input)
+    txt = layers.LSTM(lstm_units, return_sequences= True, name= "text_lstm")(txt)
 
-    #Hidden layer
-    x = keras.layers.Dense(
-        units = 256,
-        activation = 'relu'
-        )(fused)
+    #Image branch
+    img = layers.Dense(
+        lstm_units,
+        activation= 'relu',
+        name= 'img_proj'
+    )(img_input)
+    img = layers.RepeatVector(T, name= 'img_repeat')(img)
 
-    #Output layer
-    outputs = keras.layers.Dense(
-        units = vocab_size,
-        activation = 'softmax'
-        )(x)
+    #Fusion per timestep
+    fused = layers.Concatenate(name= 'fusion_concat')([txt, img])
+    fused = layers.LSTM(
+        lstm_units,
+        return_sequences= True,
+        name= 'fusion_lstm'
+    )(fused)
 
-    #returning the model with the inputs and output
-    return Model(inputs = [image_input, text_input], outputs = outputs)
+    #Predict next token at each timestep
+    out = layers.TimeDistributed(
+        layers.Dense(
+            vocab_size,
+            activation= 'softmax'
+        ),
+        name= 'vocab_softmax'
+    )(fused)
 
-fusion_model = build_fusion_model(vocab_size= 8829)
-fusion_model.summary()
+    return Model(inputs=[img_input, seq_input], outputs=out, name="caption_model")
 
 
